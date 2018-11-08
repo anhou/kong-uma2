@@ -2,7 +2,7 @@
 kong plugin for uma2 authorization
 
 * resty/uma2 is based on lua-resty-openidc 1.6.1 version  https://github.com/zmartzone/lua-resty-openidc/tree/v1.6.1 
-* kong/plugins/uma2/* is based on kong-oidc ac175cdc7d5b4db97859dcb7e582005911ff190d commit https://github.com/nokia/kong-oidc/commit/ac175cdc7d5b4db97859dcb7e582005911ff190d , it requires resty/uma2
+* kong/plugins/uma2/* is based on kong-oidc 5c34b84e9e5463841ae36392026c6511c6524933 commit https://github.com/nokia/kong-oidc/commit/5c34b84e9e5463841ae36392026c6511c6524933 , it requires resty/uma2
 
 
 # Usage
