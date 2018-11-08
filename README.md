@@ -9,7 +9,7 @@ kong plugin for uma2 authorization
 1. Install lua and luarocks
 2. Install kong, and setup keycloak as uma2 configuration server
 3. Copy both resty/uma2 and kong/plugins/uma2/* to /usr/local/share/lua/5.1/ directory
-4. Change kong configuration in /etc/kong/kong.conf
+4. Change kong configuration in /etc/kong/kong.conf and restart kong
 
 ```
 log_level = debug
@@ -25,7 +25,7 @@ pg_password = kong                  # The password to authenticate if required.
 pg_database = kong              # The database name to connect to.
 ```
 
-* Enable plugin `uma2` for service `abc`, the configuration is as below.
+5. Enable plugin `uma2` for service `abc`, the configuration is as below.
 
 ```
 $ curl localhost:8001/services/abc | jq
