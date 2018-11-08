@@ -1,0 +1,142 @@
+diff -ruN ../kong-oidc/kong/plugins/oidc/handler.lua kong/plugins/uma2/handler.lua
+--- ../kong-oidc/kong/plugins/oidc/handler.lua	2018-09-30 21:11:29.961565760 -0400
++++ kong/plugins/uma2/handler.lua	2018-11-08 03:29:46.560531935 -0500
+@@ -1,50 +1,55 @@
+ local BasePlugin = require "kong.plugins.base_plugin"
+-local OidcHandler = BasePlugin:extend()
+-local utils = require("kong.plugins.oidc.utils")
+-local filter = require("kong.plugins.oidc.filter")
+-local session = require("kong.plugins.oidc.session")
++local uma2Handler = BasePlugin:extend()
++local utils = require("kong.plugins.uma2.utils")
++local filter = require("kong.plugins.uma2.filter")
++local session = require("kong.plugins.uma2.session")
+ 
+-OidcHandler.PRIORITY = 1000
++uma2Handler.PRIORITY = 1000
+ 
+ 
+-function OidcHandler:new()
+-  OidcHandler.super.new(self, "oidc")
++function uma2Handler:new()
++  uma2Handler.super.new(self, "uma2")
+ end
+ 
+-function OidcHandler:access(config)
+-  OidcHandler.super.access(self)
++function uma2Handler:access(config)
++  ngx.log(ngx.DEBUG, "uma2Handler start")
++  uma2Handler.super.access(self)
+   local oidcConfig = utils.get_options(config, ngx)
+ 
+-  if filter.shouldProcessRequest(oidcConfig) then
+-    session.configure(config)
+-    handle(oidcConfig)
+-  else
+-    ngx.log(ngx.DEBUG, "OidcHandler ignoring request, path: " .. ngx.var.request_uri)
+-  end
++--  if filter.shouldProcessRequest(oidcConfig) then
++--    session.configure(config)
++  uma2_handle(oidcConfig)
++--  else
++--    ngx.log(ngx.DEBUG, "uma2Handler ignoring request, path: " .. ngx.var.request_uri)
++--  end
+ 
+-  ngx.log(ngx.DEBUG, "OidcHandler done")
++  ngx.log(ngx.DEBUG, "uma2Handler done")
+ end
+ 
+-function handle(oidcConfig)
++function uma2_handle(oidcConfig)
++  ngx.log(ngx.DEBUG, "uma2_handle")
+   local response
+-  if oidcConfig.introspection_endpoint then
+-    response = introspect(oidcConfig)
+-    if response then
+-      utils.injectUser(response)
+-    end
+-  end
+-
+-  if response == nil then
+-    response = make_oidc(oidcConfig)
++--  if oidcConfig.introspection_endpoint then
++--    response = introspect(oidcConfig)
++--    if response then
++--      utils.injectUser(response)
++--    end
++--  end
++--
++--  if response == nil then
++    response = make_uma2(oidcConfig)
++      ngx.log(ngx.DEBUG, "andrew========= after make_uma2 ")
+     if response and response.user then
++      ngx.log(ngx.DEBUG, "andrew=========1 after make_uma2 ")
+       utils.injectUser(response.user)
+     end
+-  end
++--  end
+ end
+ 
+-function make_oidc(oidcConfig)
+-  ngx.log(ngx.DEBUG, "OidcHandler calling authenticate, requested path: " .. ngx.var.request_uri)
+-  local res, err = require("resty.openidc").authenticate(oidcConfig)
++function make_uma2(oidcConfig)
++
++  ngx.log(ngx.DEBUG, "uma2Handler calling authenticate, requested path: " .. ngx.var.request_uri)
++  local res, err = require("resty.uma2").authenticate(oidcConfig)
+   if err then
+     if oidcConfig.recovery_page_path then
+       ngx.log(ngx.DEBUG, "Entering recovery page: " .. oidcConfig.recovery_page_path)
+@@ -57,7 +62,7 @@
+ 
+ function introspect(oidcConfig)
+   if utils.has_bearer_access_token() or oidcConfig.bearer_only == "yes" then
+-    local res, err = require("resty.openidc").introspect(oidcConfig)
++    local res, err = require("resty.uma2").introspect(oidcConfig)
+     if err then
+       if oidcConfig.bearer_only == "yes" then
+         ngx.header["WWW-Authenticate"] = 'Bearer realm="' .. oidcConfig.realm .. '",error="' .. err .. '"'
+@@ -65,11 +70,11 @@
+       end
+       return nil
+     end
+-    ngx.log(ngx.DEBUG, "OidcHandler introspect succeeded, requested path: " .. ngx.var.request_uri)
++    ngx.log(ngx.DEBUG, "uma2Handler introspect succeeded, requested path: " .. ngx.var.request_uri)
+     return res
+   end
+   return nil
+ end
+ 
+ 
+-return OidcHandler
++return uma2Handler
+diff -ruN ../kong-oidc/kong/plugins/oidc/schema.lua kong/plugins/uma2/schema.lua
+--- ../kong-oidc/kong/plugins/oidc/schema.lua	2018-11-08 03:52:55.296503597 -0500
++++ kong/plugins/uma2/schema.lua	2018-11-08 02:32:30.756602045 -0500
+@@ -4,6 +4,7 @@
+     client_id = { type = "string", required = true },
+     client_secret = { type = "string", required = true },
+     discovery = { type = "string", required = true, default = "https://.well-known/openid-configuration" },
++    uma2_discovery = { type = "string", required = true, default = "https://.well-known/uma2-configuration" },
+     introspection_endpoint = { type = "string", required = false },
+     introspection_endpoint_auth_method = { type = "string", required = false },
+     bearer_only = { type = "string", required = true, default = "no" },
+diff -ruN ../kong-oidc/kong/plugins/oidc/utils.lua kong/plugins/uma2/utils.lua
+--- ../kong-oidc/kong/plugins/oidc/utils.lua	2018-11-08 03:52:55.300503597 -0500
++++ kong/plugins/uma2/utils.lua	2018-11-08 02:32:30.760602045 -0500
+@@ -44,6 +44,7 @@
+     client_id = config.client_id,
+     client_secret = config.client_secret,
+     discovery = config.discovery,
++    uma2_discovery = config.uma2_discovery,
+     introspection_endpoint = config.introspection_endpoint,
+     introspection_endpoint_auth_method = config.introspection_endpoint_auth_method,
+     bearer_only = config.bearer_only,
+@@ -72,6 +73,7 @@
+   tmp_user.username = user.preferred_username
+   ngx.ctx.authenticated_credential = tmp_user
+   local userinfo = cjson.encode(user)
++  ngx.log(ngx.DEBUG, "andrew==============inject: ", ngx.encode_base64(userinfo))
+   ngx.req.set_header("X-Userinfo", ngx.encode_base64(userinfo))
+ end
+ 
